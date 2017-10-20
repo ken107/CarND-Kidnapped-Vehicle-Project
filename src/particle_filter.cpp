@@ -29,7 +29,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
 	normal_distribution<double> dist_theta(theta, std[2]);
-	default_random_engine gen;
 
 	for (int i=0; i<num_particles; i++) {
 		Particle p;
@@ -38,6 +37,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		p.y = dist_y(gen);
 		p.theta = dist_theta(gen);
 		p.weight = 1;
+		particles.push_back(p);
 	}
 
 	is_initialized = true;
@@ -48,7 +48,15 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
+	normal_distribution<double> dist_x(x, std_pos[0]);
+	normal_distribution<double> dist_y(y, std_pos[1]);
+	normal_distribution<double> dist_theta(theta, std_pos[2]);
 
+	for (auto& p : particles) {
+		p.x += (velocity / yaw_rate) * (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) + dist_x(gen);
+		p.y += (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) + dist_y(gen);
+		p.theta += yaw_rate * delta_t + dist_theta(gen);
+	}
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
@@ -71,6 +79,18 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+	for (const auto& p : particles) {
+		std::vector<LandmarkObs> predicted;
+		for (const auto& obs : observations) predicted.push_back(transformObservation(obs, p));
+		
+	}
+}
+
+LandmarkObs ParticleFilter::transformObservation(const LandmarkObs& obs, const Particle& p) {
+	LandmarkObs result;
+	result.x = p.x + (cos(p.theta) * obs.x) - (sin(p.theta) * obs.y);
+	result.y = p.y + (sin(p.theta) * obs.x) + (cos(p.theta) * obs.y);
+	return result;
 }
 
 void ParticleFilter::resample() {
