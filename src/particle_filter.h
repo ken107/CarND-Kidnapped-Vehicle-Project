@@ -29,7 +29,7 @@ class ParticleFilter {
 
 	// Number of particles to draw
 	int num_particles;
-	default_random_engine gen;
+	std::default_random_engine gen;
 
 
 	// Flag, if filter is initialized
@@ -37,8 +37,6 @@ class ParticleFilter {
 
 	// Vector of weights of all particles
 	std::vector<double> weights;
-
-	LandmarkObs transformObservation(const LandmarkObs& obs, const Particle& p);
 
 public:
 
@@ -92,6 +90,8 @@ public:
 	 */
 	void updateWeights(double sensor_range, double std_landmark[], const std::vector<LandmarkObs> &observations,
 			const Map &map_landmarks);
+
+	LandmarkObs transformObservation(const LandmarkObs& obs, const Particle& p);
 
 	/**
 	 * resample Resamples from the updated set of particles to form
