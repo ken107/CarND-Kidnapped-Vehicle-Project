@@ -32,7 +32,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 	for (int i=0; i<num_particles; i++) {
 		Particle p;
-		p.id = i+1;
+		p.id = i;
 		p.x = dist_x(gen);
 		p.y = dist_y(gen);
 		p.theta = dist_theta(gen);
@@ -64,7 +64,16 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to
 	//   implement this method and use it as a helper during the updateWeights phase.
-
+	for (auto& obs : observations) {
+		double nearest = 99999;
+		for (const auto& pred : predicted) {
+			auto dist = calculateDist(obs.x, obs.y, pred.x, pred.y);
+			if (dist < nearest) {
+				nearest = dist;
+				obs.id = pred.id;
+			}
+		}
+	}
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
@@ -81,16 +90,25 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   http://planning.cs.uiuc.edu/node99.html
 	for (const auto& p : particles) {
 		std::vector<LandmarkObs> predicted;
-		for (const auto& obs : observations) predicted.push_back(transformObservation(obs, p));
+		for (const auto& landmark : map_landmarks.landmark_list) {
+			auto dist = calculateDist(p.x, p.y, landmark.x_f, landmark.y_f);
+			if (dist < sensor_range) {
+				LandmarkObs lobs;
+				lobs.id = landmark.id_i;
+				lobs.x = landmark.x_f;
+				lobs.y = landmark.y_f;
+				predicted.push_back(lobs);
+			}
+		}
 
+		std::vector<LandmarkObs> transformed;
+		for (const auto& obs : observations) {
+			auto tobs = transformObservation(obs, p);
+			transformed.push_back(tobs);
+		}
+
+		dataAssociation(predicted, transformed);
 	}
-}
-
-LandmarkObs ParticleFilter::transformObservation(const LandmarkObs& obs, const Particle& p) {
-	LandmarkObs result;
-	result.x = p.x + (cos(p.theta) * obs.x) - (sin(p.theta) * obs.y);
-	result.y = p.y + (sin(p.theta) * obs.x) + (cos(p.theta) * obs.y);
-	return result;
 }
 
 void ParticleFilter::resample() {
@@ -145,4 +163,28 @@ string ParticleFilter::getSenseY(Particle best)
     string s = ss.str();
     s = s.substr(0, s.length()-1);  // get rid of the trailing space
     return s;
+}
+
+double ParticleFilter::calculateDist(double x1, double y1, double x2, double y2) {
+	double dx = x2-x1;
+	double dy = y2-y1;
+	return sqrt(dx*dx + dy*dy);
+}
+
+LandmarkObs ParticleFilter::transformObservation(const LandmarkObs& obs, const Particle& p) {
+	LandmarkObs result;
+	result.x = p.x + (cos(p.theta) * obs.x) - (sin(p.theta) * obs.y);
+	result.y = p.y + (sin(p.theta) * obs.x) + (cos(p.theta) * obs.y);
+	return result;
+}
+
+void ParticleFilter::printObs(const LandmarkObs& obs) {
+	cout << "(" << obs.id << "," << obs.x << "," << obs.y << ")";
+}
+
+void ParticleFilter::printObservations(const std::vector<LandmarkObs>& observations) {
+	for (const auto& obs : observations) {
+		printObs(obs);
+		cout << endl;
+	}
 }

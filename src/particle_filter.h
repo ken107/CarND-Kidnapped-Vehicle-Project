@@ -38,6 +38,11 @@ class ParticleFilter {
 	// Vector of weights of all particles
 	std::vector<double> weights;
 
+	double calculateDist(double x1, double y1, double x2, double y2);
+	LandmarkObs transformObservation(const LandmarkObs& obs, const Particle& p);
+	void printObs(const LandmarkObs& obs);
+	void printObservations(const std::vector<LandmarkObs>& obs);
+
 public:
 
 	// Set of current particles
@@ -90,8 +95,6 @@ public:
 	 */
 	void updateWeights(double sensor_range, double std_landmark[], const std::vector<LandmarkObs> &observations,
 			const Map &map_landmarks);
-
-	LandmarkObs transformObservation(const LandmarkObs& obs, const Particle& p);
 
 	/**
 	 * resample Resamples from the updated set of particles to form
