@@ -24,7 +24,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1.
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-	num_particles = 50;
+	num_particles = 2;
 
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
@@ -66,11 +66,12 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   implement this method and use it as a helper during the updateWeights phase.
 	for (auto& obs : observations) {
 		double nearest = 99999;
-		for (const auto& pred : predicted) {
+		for (int i=0; i<predicted.size(); i++) {
+			const auto& pred = predicted[i];
 			auto dist = calculateDist(obs.x, obs.y, pred.x, pred.y);
 			if (dist < nearest) {
 				nearest = dist;
-				obs.id = pred.id;
+				obs.id = i;
 			}
 		}
 	}
@@ -88,7 +89,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
-	for (const auto& p : particles) {
+	for (auto& p : particles) {
 		std::vector<LandmarkObs> predicted;
 		for (const auto& landmark : map_landmarks.landmark_list) {
 			auto dist = calculateDist(p.x, p.y, landmark.x_f, landmark.y_f);
@@ -108,6 +109,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		}
 
 		dataAssociation(predicted, transformed);
+
+		double weight = 1;
+		for (const auto& obs : transformed) {
+			const auto& landmark = predicted[obs.id];
+			weight *= calculateProbability(obs, landmark, std_landmark);
+		}
+		p.weight = weight;
 	}
 }
 
@@ -115,7 +123,20 @@ void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight.
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+	vector<double> weights;
+	for (const auto& p : particles)
+		weights.push_back(p.weight);
 
+	discrete_distribution<int> dist(weights.begin(), weights.end());
+	vector<int> indices;
+	for (int i=0; i<particles.size(); i++)
+		indices.push_back(dist(gen));
+
+	vector<Particle> resampled;
+	for (auto i : indices)
+		resampled.push_back(particles[i]);
+
+	particles = resampled;
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle, std::vector<int> associations, std::vector<double> sense_x, std::vector<double> sense_y)
@@ -173,18 +194,21 @@ double ParticleFilter::calculateDist(double x1, double y1, double x2, double y2)
 
 LandmarkObs ParticleFilter::transformObservation(const LandmarkObs& obs, const Particle& p) {
 	LandmarkObs result;
+	result.id = 0;
 	result.x = p.x + (cos(p.theta) * obs.x) - (sin(p.theta) * obs.y);
 	result.y = p.y + (sin(p.theta) * obs.x) + (cos(p.theta) * obs.y);
 	return result;
 }
 
-void ParticleFilter::printObs(const LandmarkObs& obs) {
-	cout << "(" << obs.id << "," << obs.x << "," << obs.y << ")";
-}
-
-void ParticleFilter::printObservations(const std::vector<LandmarkObs>& observations) {
-	for (const auto& obs : observations) {
-		printObs(obs);
-		cout << endl;
+double ParticleFilter::calculateProbability(const LandmarkObs& obs, const LandmarkObs& landmark, const double std_landmark[]) {
+	try {
+	double denominator = 2 * M_PI * std_landmark[0] * std_landmark[1];
+	double exponent1 = (obs.x - landmark.x) * (obs.x - landmark.x) / (2 * std_landmark[0] * std_landmark[0]);
+	double exponent2 = (obs.y - landmark.y) * (obs.y - landmark.y) / (2 * std_landmark[1] * std_landmark[1]);
+	double result = exp(-exponent1-exponent2) / denominator;
+	return result;
+	}
+	catch (exception& x) {
+		cerr << x.what();
 	}
 }

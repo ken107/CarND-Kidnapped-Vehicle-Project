@@ -35,13 +35,9 @@ class ParticleFilter {
 	// Flag, if filter is initialized
 	bool is_initialized;
 
-	// Vector of weights of all particles
-	std::vector<double> weights;
-
 	double calculateDist(double x1, double y1, double x2, double y2);
 	LandmarkObs transformObservation(const LandmarkObs& obs, const Particle& p);
-	void printObs(const LandmarkObs& obs);
-	void printObservations(const std::vector<LandmarkObs>& obs);
+	double calculateProbability(const LandmarkObs& obs, const LandmarkObs& landmark, const double std_landmark[]);
 
 public:
 
