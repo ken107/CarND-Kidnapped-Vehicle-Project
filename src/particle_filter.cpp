@@ -24,7 +24,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1.
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-	num_particles = 2;
+	num_particles = 10;
 
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
@@ -53,9 +53,15 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	normal_distribution<double> dist_theta(0, std_pos[2]);
 
 	for (auto& p : particles) {
-		p.x += (velocity / yaw_rate) * (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) + dist_x(gen);
-		p.y += (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) + dist_y(gen);
-		p.theta += yaw_rate * delta_t + dist_theta(gen);
+		if (yaw_rate == 0) {
+			p.x += velocity * delta_t * cos(p.theta);
+			p.y += velocity * delta_t * sin(p.theta);
+		}
+		else {
+			p.x += (velocity / yaw_rate) * (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) + dist_x(gen);
+			p.y += (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) + dist_y(gen);
+			p.theta += yaw_rate * delta_t + dist_theta(gen);
+		}
 	}
 }
 
@@ -201,14 +207,9 @@ LandmarkObs ParticleFilter::transformObservation(const LandmarkObs& obs, const P
 }
 
 double ParticleFilter::calculateProbability(const LandmarkObs& obs, const LandmarkObs& landmark, const double std_landmark[]) {
-	try {
 	double denominator = 2 * M_PI * std_landmark[0] * std_landmark[1];
 	double exponent1 = (obs.x - landmark.x) * (obs.x - landmark.x) / (2 * std_landmark[0] * std_landmark[0]);
 	double exponent2 = (obs.y - landmark.y) * (obs.y - landmark.y) / (2 * std_landmark[1] * std_landmark[1]);
 	double result = exp(-exponent1-exponent2) / denominator;
 	return result;
-	}
-	catch (exception& x) {
-		cerr << x.what();
-	}
 }
